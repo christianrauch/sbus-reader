@@ -3,7 +3,9 @@
 #include <iostream>
 
 int main() {
-  SBUS sbus("CMake");
-  std::cout << sbus.read() << '\n';
+  SBUS sbus("/dev/ttyAMA0");
+  while (true) {
+    const Frame frame = sbus.read_frame();
+  }
   return 0;
 }
