@@ -7,6 +7,7 @@
 #include <stdexcept>
 #include <sys/ioctl.h>
 #include <unistd.h>
+#include <linux/serial.h>
 
 SBUS::SBUS(const std::string &device) {
   if ((fd = open(device.c_str(), O_RDONLY | O_NOCTTY)) < 0) {
@@ -72,6 +73,20 @@ SBUS::SBUS(const std::string &device) {
   }
 
   print_opt(opt, "after");
+
+  struct serial_struct ser_info;
+  if (ioctl(fd, TIOCGSERIAL, &ser_info) < 0) {
+      throw std::runtime_error(std::string{std::strerror(errno)});
+      return;
+  }
+
+  ser_info.flags |= ASYNC_LOW_LATENCY;
+
+  if (ioctl(fd, TIOCSSERIAL, &ser_info) < 0) {
+      throw std::runtime_error(std::string{std::strerror(errno)});
+  } else {
+      std::cout << "Low latency mode enabled" << std::endl;
+  }
 }
 
 SBUS::~SBUS() {
