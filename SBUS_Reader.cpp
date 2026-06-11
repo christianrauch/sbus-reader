@@ -49,10 +49,21 @@ SBUS::SBUS(const std::string &device) {
 
   print_opt(opt, "before");
 
+  // cfmakeraw
+  // opt.c_iflag &= ~(IGNBRK | BRKINT | PARMRK | ISTRIP | INLCR | IGNCR | ICRNL | IXON);
+  // opt.c_oflag &= ~OPOST;
+  // opt.c_lflag &= ~(ECHO | ECHONL | ICANON | ISIG | IEXTEN);
+  // opt.c_cflag &= ~(CSIZE | PARENB);
+  // opt.c_cflag |= CS8;
+
+  // opt.c_cflag &= ~CRTSCTS;
+  // opt.c_cflag |= BOTHER | CLOCAL | CREAD;
+  // opt.c_iflag &= ~(IXON | IXOFF | IXANY);
 
   opt.c_cflag = CS8 | CSTOPB | PARENB | CLOCAL | CREAD | BOTHER;
   opt.c_ospeed = 100000;
   opt.c_cc[VMIN] = 1;
+  // opt.c_cc[VMIN] = N;
 
 
   if (ioctl(fd, TCSETS2, &opt) < 0) {
