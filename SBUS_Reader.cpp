@@ -19,21 +19,48 @@ SBUS::SBUS(const std::string &device) {
   // - 8 data bits
   // - even parity
   // - 2 stop bits
-  struct termios2 opt;
+  struct termios2 opt = {};
 
-  if (ioctl(fd, TCGETS2, &opt) < 0) {
-      perror("TCGETS2");
-      exit(1);
-  }
+  // if (ioctl(fd, TCGETS2, &opt) < 0) {
+  //     throw std::runtime_error(std::format("Failed to configure serial port: {}",
+  //                                        std::string{std::strerror(errno)}));
+  // }
+
+  auto print_opt = [](const termios2 &t, const char *label) {
+    std::cout << "termios2 (" << label << ")\n"
+              << "  c_iflag : 0x" << std::hex << t.c_iflag << std::dec << "\n"
+              << "  c_oflag : 0x" << std::hex << t.c_oflag << std::dec << "\n"
+              << "  c_cflag : 0x" << std::hex << t.c_cflag << std::dec << "\n"
+              << "  c_lflag : 0x" << std::hex << t.c_lflag << std::dec << "\n"
+              << "  c_line  : " << static_cast<int>(t.c_line) << "\n"
+              << "  c_ispeed: " << t.c_ispeed << "\n"
+              << "  c_ospeed: " << t.c_ospeed << "\n"
+              << "  c_cc    : ";
+
+    for (size_t i = 0; i < NCCS; ++i) {
+      std::cout << static_cast<int>(t.c_cc[i]);
+      if (i + 1 != NCCS) {
+        std::cout << ", ";
+      }
+    }
+
+    std::cout << '\n';
+  };
+
+  print_opt(opt, "before");
+
 
   opt.c_cflag = CS8 | CSTOPB | PARENB | CLOCAL | CREAD | BOTHER;
   opt.c_ospeed = 100000;
+  opt.c_cc[VMIN] = 1;
 
 
   if (ioctl(fd, TCSETS2, &opt) < 0) {
     throw std::runtime_error(std::format("Failed to configure serial port: {}",
                                          std::string{std::strerror(errno)}));
   }
+
+  print_opt(opt, "after");
 }
 
 SBUS::~SBUS() {
@@ -44,32 +71,43 @@ SBUS::~SBUS() {
 
 Frame SBUS::read_frame() {
   const auto start = std::chrono::steady_clock::now();
-  read();
+  const ssize_t n = read();
   const auto end = std::chrono::steady_clock::now();
   const auto elapsed_us =
       std::chrono::duration_cast<std::chrono::microseconds>(end - start)
           .count();
-  std::cout << "read() took " << elapsed_us << " us\n";
+  if (n > 0) {
+    std::cout << "read (" << n << ") in " << elapsed_us << " us\n";
+  }
 
-  return decode();
+  const Frame frame = decode();
+
+  if (n > 0) {
+    std::cout << "CH: ";
+    for (int i = 0; i < 16; i++)
+        std::cout << frame.channels[i] << " ";
+
+    std::cout << "| Lost: " << frame.frame_lost << " Failsafe: " << frame.failsafe << std::endl;
+  }
+
+  return frame;
 }
 
-bool SBUS::read() {
+ssize_t SBUS::read() {
   frame = {};
-  const int n = ::read(fd, frame.data(), frame.size());
+  const ssize_t n = ::read(fd, frame.data(), frame.size());
 
   if (n == -1) {
-    std::cerr << "Error reading from serial port: " << strerror(errno)
-              << std::endl;
-    return false;
+    std::cerr << "Error reading from serial port: " << strerror(errno) << std::endl;
+    // return -1;
   }
 
-  if (n == 0)
-  {
-    return false;
-  }
+  // if (n == 0)
+  // {
+  //   return 0;
+  // }
 
-  return true;
+  return n;
 }
 
 Frame SBUS::decode() {
@@ -97,8 +135,9 @@ Frame SBUS::decode() {
   Frame f;
 
   for (size_t i = 0; i < max_channels; i++) {
-    std::cout << "ch[" << i << "]: " << channels[i] << "\n";
-    f.channels[i] = channels[i] / 2048.;
+    // std::cout << "ch[" << i << "]: " << channels[i] << "\n";
+    // f.channels[i] = channels[i] / 2048.;
+    f.channels[i] = channels[i];
   }
 
   // boolean channels

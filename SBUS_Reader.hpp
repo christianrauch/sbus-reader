@@ -6,7 +6,8 @@
 #include <cstdint>
 
 struct Frame {
-    std::array<double, 16> channels;
+    // std::array<double, 16> channels;
+    std::array<uint16_t, 16> channels;
     std::array<bool, 2> channels2;
     bool frame_lost;
     bool failsafe;
@@ -41,6 +42,6 @@ private:
     static constexpr std::size_t max_channels = 16;
     std::array<uint16_t, max_channels> channels;  // 1 - 16: 11 bit
 
-    bool read();
+    ssize_t read();
     Frame decode();
 };
