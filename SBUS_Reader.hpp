@@ -38,6 +38,8 @@ private:
     // }();
 
     static constexpr size_t N = 25;
+    static constexpr uint8_t SBUS_HEADER = 0x0F;
+    static constexpr uint8_t SBUS_END = 0x0;
     std::array<uint8_t, N> frame = {};
     static constexpr std::size_t max_channels = 16;
     std::array<uint16_t, max_channels> channels;  // 1 - 16: 11 bit

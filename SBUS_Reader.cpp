@@ -107,6 +107,12 @@ ssize_t SBUS::read() {
   //   return 0;
   // }
 
+  if (n != N || frame[0] != SBUS_HEADER || frame[24] != SBUS_END)
+  {
+    std::cerr << "Invalid S.BUS frame!" << std::endl;
+    // return 0;
+  }
+
   return n;
 }
 
