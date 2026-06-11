@@ -38,7 +38,18 @@ Frame SBUS::read_frame() {
   return decode();
 }
 
-std::string SBUS::read() { return ""; }
+bool SBUS::read() {
+  frame = {};
+  const int n = ::read(fd, frame.data(), frame.size());
+
+  if (n == -1) {
+    std::cerr << "Error reading from serial port: " << strerror(errno)
+              << std::endl;
+    return false;
+  }
+
+  return true;
+}
 
 Frame SBUS::decode() {
   channels[0] = (uint16_t)((frame[1] | frame[2] << 8) & 0x07FF);
@@ -62,5 +73,19 @@ Frame SBUS::decode() {
   channels[14] = (uint16_t)((frame[20] >> 2 | frame[21] << 6) & 0x07FF);
   channels[15] = (uint16_t)((frame[21] >> 5 | frame[22] << 3) & 0x07FF);
 
-  return Frame{};
+  Frame f;
+
+  for (size_t i = 0; i < max_channels; i++) {
+    f.channels[i] = channels[i] / 2048.;
+  }
+
+  // boolean channels
+  f.channels2[0] = frame[23] & 0x01;
+  f.channels2[1] = frame[23] & 0x02;
+
+  // lost frame and failsafe (multiple lost frames) indicators
+  f.frame_lost = frame[23] & 0x04;
+  f.failsafe = frame[23] & 0x08;
+
+  return f;
 }
