@@ -14,7 +14,23 @@ SBUS::SBUS(const std::string &device) {
         std::format("{}: {}", std::string{std::strerror(errno)}, device));
   }
 
-  if (ioctl(fd, TCSETS2, &options) < 0) {
+  // https://github.com/bolderflight/sbus/blob/main/README.md
+  // - baud rate of 100000
+  // - 8 data bits
+  // - even parity
+  // - 2 stop bits
+  struct termios2 opt;
+
+  if (ioctl(fd, TCGETS2, &opt) < 0) {
+      perror("TCGETS2");
+      exit(1);
+  }
+
+  opt.c_cflag = CS8 | CSTOPB | PARENB | CLOCAL | CREAD | BOTHER;
+  opt.c_ospeed = 100000;
+
+
+  if (ioctl(fd, TCSETS2, &opt) < 0) {
     throw std::runtime_error(std::format("Failed to configure serial port: {}",
                                          std::string{std::strerror(errno)}));
   }
@@ -48,6 +64,11 @@ bool SBUS::read() {
     return false;
   }
 
+  if (n == 0)
+  {
+    return false;
+  }
+
   return true;
 }
 
@@ -76,6 +97,7 @@ Frame SBUS::decode() {
   Frame f;
 
   for (size_t i = 0; i < max_channels; i++) {
+    std::cout << "ch[" << i << "]: " << channels[i] << "\n";
     f.channels[i] = channels[i] / 2048.;
   }
 
