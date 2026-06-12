@@ -1,13 +1,14 @@
 #include "SBUS_Reader.hpp"
+#include <cassert>
 #include <chrono>
 #include <cstring>
 #include <fcntl.h>
 #include <format>
 #include <iostream>
+#include <linux/serial.h>
 #include <stdexcept>
 #include <sys/ioctl.h>
 #include <unistd.h>
-#include <linux/serial.h>
 
 SBUS::SBUS(const std::string &device) {
   if ((fd = open(device.c_str(), O_RDONLY | O_NOCTTY)) < 0) {
@@ -23,7 +24,8 @@ SBUS::SBUS(const std::string &device) {
   struct termios2 opt = {};
 
   // if (ioctl(fd, TCGETS2, &opt) < 0) {
-  //     throw std::runtime_error(std::format("Failed to configure serial port: {}",
+  //     throw std::runtime_error(std::format("Failed to configure serial port:
+  //     {}",
   //                                        std::string{std::strerror(errno)}));
   // }
 
@@ -51,7 +53,8 @@ SBUS::SBUS(const std::string &device) {
   print_opt(opt, "before");
 
   // cfmakeraw
-  // opt.c_iflag &= ~(IGNBRK | BRKINT | PARMRK | ISTRIP | INLCR | IGNCR | ICRNL | IXON);
+  // opt.c_iflag &=
+  //     ~(IGNBRK | BRKINT | PARMRK | ISTRIP | INLCR | IGNCR | ICRNL | IXON);
   // opt.c_oflag &= ~OPOST;
   // opt.c_lflag &= ~(ECHO | ECHONL | ICANON | ISIG | IEXTEN);
   // opt.c_cflag &= ~(CSIZE | PARENB);
@@ -66,7 +69,6 @@ SBUS::SBUS(const std::string &device) {
   opt.c_cc[VMIN] = 1;
   // opt.c_cc[VMIN] = N;
 
-
   if (ioctl(fd, TCSETS2, &opt) < 0) {
     throw std::runtime_error(std::format("Failed to configure serial port: {}",
                                          std::string{std::strerror(errno)}));
@@ -76,16 +78,15 @@ SBUS::SBUS(const std::string &device) {
 
   struct serial_struct ser_info;
   if (ioctl(fd, TIOCGSERIAL, &ser_info) < 0) {
-      throw std::runtime_error(std::string{std::strerror(errno)});
-      return;
+    throw std::runtime_error(std::string{std::strerror(errno)});
   }
 
   ser_info.flags |= ASYNC_LOW_LATENCY;
 
   if (ioctl(fd, TIOCSSERIAL, &ser_info) < 0) {
-      throw std::runtime_error(std::string{std::strerror(errno)});
+    throw std::runtime_error(std::string{std::strerror(errno)});
   } else {
-      std::cout << "Low latency mode enabled" << std::endl;
+    std::cout << "Low latency mode enabled" << std::endl;
   }
 }
 
@@ -111,9 +112,10 @@ Frame SBUS::read_frame() {
   if (success) {
     std::cout << "CH: ";
     for (int i = 0; i < 16; i++)
-        std::cout << frame.channels[i] << " ";
+      std::cout << frame.channels[i] << " ";
 
-    std::cout << "| Lost: " << frame.frame_lost << " Failsafe: " << frame.failsafe << std::endl;
+    std::cout << "| Lost: " << frame.frame_lost
+              << " Failsafe: " << frame.failsafe << std::endl;
   }
 
   return frame;
@@ -129,22 +131,19 @@ bool SBUS::read() {
   ssize_t i = 0;
 
   while (true) {
-    const ssize_t n = ::read(fd, frame.data()+i, frame.size()-i);
+    const ssize_t n = ::read(fd, frame.data() + i, frame.size() - i);
 
     std::cout << "read " << i << " + " << n << " bytes" << std::endl;
 
     if (n == -1) {
-      std::cerr << "Error reading from serial port: " << strerror(errno) << std::endl;
+      std::cerr << "Error reading from serial port: " << strerror(errno)
+                << std::endl;
       return false;
     }
 
-    if (n == 0)
-    {
-      continue;
-    }
+    assert(n > 0);
 
-    if (!found_header)
-    {
+    if (!found_header) {
       const bool has_header = frame[0] == SBUS_HEADER;
       std::cout << "has_header: " << has_header << std::endl;
       found_header = !found_header && has_header;
@@ -160,18 +159,14 @@ bool SBUS::read() {
       }
     }
 
-    if ((i+n) == N)
-    {
+    if ((i + n) == N) {
       // read full frame
       std::cout << "read max bytes" << std::endl;
-      if (frame[N-1] == SBUS_END)
-      {
+      if (frame[N - 1] == SBUS_END) {
         // correct end
         std::cout << "found end" << std::endl;
         break;
-      }
-      else
-      {
+      } else {
         std::cerr << "Invalid S.BUS frame: incorrect end byte!" << std::endl;
         // return 0;
         // reset, repeat
@@ -181,22 +176,13 @@ bool SBUS::read() {
       }
     }
 
-    // if we are here, it means we have read some bytes but haven't found a valid frame yet
+    // if we are here, it means we have read some bytes but haven't found a
+    // valid frame yet
     i += n;
     std::cout << "search on " << i << "+" << std::endl;
   }
 
-  // if (n == 0)
-  // {
-  //   return 0;
-  // }
-
-  if (frame[0] != SBUS_HEADER || frame[24] != SBUS_END)
-  {
-    std::cerr << "Invalid S.BUS frame!" << std::endl;
-    throw std::runtime_error("Invalid S.BUS frame!");
-    return false;
-  }
+  assert(frame[0] == SBUS_HEADER && frame[24] == SBUS_END);
 
   return true;
 }
