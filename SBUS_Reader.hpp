@@ -6,7 +6,8 @@
 #include <cstdint>
 
 struct Frame {
-    std::array<uint16_t, 16> channels;
+    // std::array<uint16_t, 16> channels;
+    std::array<double, 16> channels;
     std::array<bool, 2> channels2;
     bool frame_lost;
     bool failsafe;

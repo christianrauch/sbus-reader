@@ -131,6 +131,11 @@ bool SBUS::read() {
   ssize_t i = 0;
 
   while (true) {
+    int bytes_available;
+    ioctl(fd, FIONREAD, &bytes_available);
+
+    std::cout << "avail " << bytes_available << std::endl;
+
     const ssize_t n = ::read(fd, frame.data() + i, frame.size() - i);
 
     std::cout << "read " << i << " + " << n << " bytes" << std::endl;
@@ -213,8 +218,8 @@ Frame SBUS::decode() {
 
   for (size_t i = 0; i < max_channels; i++) {
     // std::cout << "ch[" << i << "]: " << channels[i] << "\n";
-    // f.channels[i] = channels[i] / 2048.;
-    f.channels[i] = channels[i];
+    f.channels[i] = channels[i] / 2048.;
+    // f.channels[i] = channels[i];
   }
 
   // boolean channels
