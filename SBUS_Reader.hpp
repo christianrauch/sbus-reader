@@ -44,6 +44,6 @@ private:
     static constexpr std::size_t max_channels = 16;
     std::array<uint16_t, max_channels> channels;  // 1 - 16: 11 bit
 
-    ssize_t read();
+    bool read();
     Frame decode();
 };
